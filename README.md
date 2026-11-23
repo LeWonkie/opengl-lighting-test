@@ -1,6 +1,6 @@
 # Standalone animated lighting test
 
-This synthetic fixture checks normal blending with two opposing bone rotations in OpenGL. It samples the center of a triangle whose screen position stays fixed, so the pixel changes come from animated normals. It exercises per-vertex and per-fragment lighting at 0°, +60°, −60°, +60°, and 0° to catch stale pose data.
+This synthetic fixture checks normal blending with two opposing bone rotations in OpenGL. It samples the center of a triangle whose screen position stays fixed, so the pixel changes come from animated normals. It exercises per-vertex and per-fragment lighting at 0�, +60�, -60�, +60�, and 0� to catch stale pose data.
 
 ## Run
 
