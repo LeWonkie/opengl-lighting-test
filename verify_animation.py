@@ -163,15 +163,17 @@ def verify(gl):
     if min(rotation, mode) < 0:
         raise RuntimeError("An animation uniform was not active")
 
-    # Centroid (48.5, 32.5); independent RGBA8 oracles from barycentric weights 1/3.
-    # At 60 degrees the normalised blend has cos = 2/sqrt(7), sin = sqrt(3)/sqrt(7).
-    poses = (
-        ("0 deg", 1.0, 0.0, (85, 147)),
-        ("+60 deg", 0.5, sqrt(3) / 2, (64, 15)),
-        ("-60 deg", 0.5, -sqrt(3) / 2, (120, 208)),
-        ("+60 deg", 0.5, sqrt(3) / 2, (64, 15)),
-        ("0 deg", 1.0, 0.0, (85, 147)),
-    )
+    # Expected (vertex, fragment) RGB8 values at three pixel centers. The
+    # barycentric weights are (1/3,1/3,1/3), (1/2,1/4,1/4), (1/4,1/2,1/4).
+    # For weights (a,b,d), the rotated basis has z components (C,-S,0).
+    # Vertex light is a*C + b*max(-S,0); fragment light is
+    # max(a*C-b*S,0) / sqrt(a*a+b*b+d*d). At +/-60 degrees C=2/sqrt(7)
+    # and S=+/-sqrt(3/7) after blending and normalizing the bone rotations.
+    points = ((48, 32), (40, 28), (56, 28))
+    neutral = ("0 deg", 1.0, 0.0, ((85, 147), (128, 208), (64, 104)))
+    positive = ("+60 deg", 0.5, sqrt(3) / 2, ((64, 15), (96, 89), (48, 0)))
+    negative = ("-60 deg", 0.5, -sqrt(3) / 2, ((120, 208), (138, 226), (132, 215)))
+    poses = (neutral, positive, negative, positive, neutral)
     checks = 0
     for enabled in (0, 1):
         set_mode(mode, enabled)
@@ -180,15 +182,17 @@ def verify(gl):
             clear_color(0.0, 0.0, 0.0, 0.0)
             clear(0x4000)
             draw(4, 0, 3)
-            pixel = (c.c_ubyte * 4)()
-            read(48, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel)
-            actual = tuple(pixel)
-            status = error()
-            if status or any(abs(channel - expected[enabled]) > 2 for channel in actual[:3]) or actual[3] != 255:
-                raise RuntimeError(f"mode {enabled}, pose {label}: got {actual}, "
-                                   f"expected RGB {expected[enabled]} and alpha 255 (GL error 0x{status:04x})")
-            print(f"{'fragment' if enabled else 'vertex':8} {label:8} {actual}")
-            checks += 1
+            for index, (x, y) in enumerate(points):
+                target = expected[index][enabled]
+                pixel = (c.c_ubyte * 4)()
+                read(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel)
+                actual = tuple(pixel)
+                status = error()
+                if status or any(abs(channel - target) > 2 for channel in actual[:3]) or actual[3] != 255:
+                    raise RuntimeError(f"mode {enabled}, pose {label}, pixel {(x, y)}: got {actual}, "
+                                       f"expected RGB {target} and alpha 255 (GL error 0x{status:04x})")
+                print(f"{'fragment' if enabled else 'vertex':8} {label:8} {(x, y)} {actual}")
+                checks += 1
     print(f"PASS: {checks} framebuffer checks")
 
 
